@@ -33,10 +33,12 @@ import TreeList from "./TreeList.astro";
 
     const panel = document.getElementById("tree-panel");
     const filterInput = document.getElementById("tree-filter") as HTMLInputElement;
+    const toggleModifiedBtn = document.getElementById("toggle-modified");
     const treeContent = document.getElementById("tree-content");
     const resizer = document.getElementById("tree-resizer");
 
     let currentFilter = "";
+    let showOnlyModified = false;
     let expandedKeys = new Set<string>();
     let width = DEFAULT_WIDTH;
     let diffData: DiffFileEntry | null = null;
@@ -107,6 +109,18 @@ import TreeList from "./TreeList.astro";
             renderTree();
         });
 
+        toggleModifiedBtn?.addEventListener("click", () => {
+            showOnlyModified = !showOnlyModified;
+            if (showOnlyModified) {
+                toggleModifiedBtn.classList.add("bg-blue-50", "text-blue-600", "border-blue-200", "dark:bg-blue-900/20", "dark:text-blue-400", "dark:border-blue-800");
+                toggleModifiedBtn.classList.remove("text-neutral-400", "dark:text-neutral-500");
+            } else {
+                toggleModifiedBtn.classList.remove("bg-blue-50", "text-blue-600", "border-blue-200", "dark:bg-blue-900/20", "dark:text-blue-400", "dark:border-blue-800");
+                toggleModifiedBtn.classList.add("text-neutral-400", "dark:text-neutral-500");
+            }
+            renderTree();
+        });
+
         resizer?.addEventListener("mousedown", (e) => {
             e.preventDefault();
             const startX = e.clientX;
@@ -169,26 +183,41 @@ import TreeList from "./TreeList.astro";
         }
     }
 
+    function hasVisibleDescendants(item: DiffFileEntry): boolean {
+        if (!item.children) return false;
+        
+        return item.children.some(child => {
+            const matchesFilter = child.path.toLowerCase().includes(currentFilter);
+            const isModified = child.status !== "unchanged";
+            
+            // Check if this child itself should be visible
+            const isVisible = showOnlyModified ? (isModified && matchesFilter) : matchesFilter;
+            if (isVisible) return true;
+            
+            // Recursively check its descendants
+            return hasVisibleDescendants(child);
+        });
+    }
+
     function createNodeElement(item: DiffFileEntry, depth: number): HTMLElement | null {
         const name = item.path.split('/').pop() || item.path;
         const hasChildren = item.children && item.children.length > 0;
         const matchesFilter = name.toLowerCase().includes(currentFilter);
+        const isModified = item.status !== "unchanged";
 
-        let hasVisibleChildren = false;
-        if (hasChildren && item.children) {
-            hasVisibleChildren = item.children.some(child => {
-                if (child.path.toLowerCase().includes(currentFilter)) return true;
-                if (child.children) {
-                    return child.children.some(gc => gc.path.toLowerCase().includes(currentFilter));
-                }
-                return false;
-            });
-        }
+        const hasVisibleChildren = hasChildren ? hasVisibleDescendants(item) : false;
 
-        const shouldAutoExpand = currentFilter.length > 0;
+        const shouldAutoExpand = currentFilter.length > 0 || showOnlyModified;
         const isExpanded = expandedKeys.has(item.path) || (shouldAutoExpand && hasVisibleChildren);
 
+        // Visibility logic:
+        // 1. If filtering by text, item or its descendants must match filter
         if (currentFilter && !matchesFilter && !hasVisibleChildren) {
+            return null;
+        }
+
+        // 2. If showOnlyModified is active, item or its descendants must be modified
+        if (showOnlyModified && !isModified && !hasVisibleChildren) {
             return null;
         }
 

@@ -1,12 +1,23 @@
 ---
+
+import EyeIcon from "../Icons/EyeIcon.astro";
 import FilterIcon from "../Icons/FilterIcon.astro";
 ---
-<div class="relative mb-3">
-    <FilterIcon class="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-neutral-400 dark:text-neutral-500" />
-    <input
-        type="text"
-        id="tree-filter"
-        placeholder="Filter files and folders..."
-        class="w-full pl-7 pr-3 py-2 text-sm bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500"
-    />
+<div class="relative mb-3 flex items-center gap-2">
+    <div class="relative flex-1">
+        <FilterIcon class="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-neutral-400 dark:text-neutral-500" />
+        <input
+            type="text"
+            id="tree-filter"
+            placeholder="Filter files and folders..."
+            class="w-full pl-7 pr-3 py-2 text-sm bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500"
+        />
+    </div>
+    <button
+        id="toggle-modified"
+        class="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-md border border-neutral-300 dark:border-neutral-700 text-neutral-400 dark:text-neutral-500 transition-colors"
+        title="Toggle show only modified files"
+    >
+        <EyeIcon class="w-4 h-4" />
+    </button>
 </div>
