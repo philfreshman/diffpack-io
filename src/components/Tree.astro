@@ -1,0 +1,286 @@
+---
+---
+
+<div class="bg-neutral-50 dark:bg-neutral-950 h-full" id="tree-root">
+    <div
+        class="h-full bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 p-3 relative flex flex-col"
+        id="tree-panel"
+        style="width: 320px;"
+    >
+        <div class="relative mb-3">
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-neutral-400 dark:text-neutral-500"
+            >
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
+            <input
+                type="text"
+                id="tree-filter"
+                placeholder="Filter files and folders..."
+                class="w-full pl-7 pr-3 py-2 text-sm bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500"
+            />
+        </div>
+
+        <div id="tree-content" class="font-mono text-sm flex-1 min-h-0 overflow-auto">
+            <!-- Tree nodes will be rendered here by JavaScript -->
+        </div>
+
+        <!-- Resizer handle -->
+        <div
+            role="separator"
+            aria-orientation="vertical"
+            id="tree-resizer"
+            class="absolute top-0 right-0 h-full w-1 cursor-col-resize select-none bg-transparent hover:bg-blue-500/30 dark:hover:bg-blue-400/30 transition-colors"
+        >
+            <!-- Larger invisible hit area -->
+            <div class="absolute top-0 -left-1 h-full w-3"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    import type { DiffFileEntry, DiffStatus } from "../workers/diff.worker";
+
+    const STORAGE_KEY = "tree_panel_width";
+    const DEFAULT_WIDTH = 320;
+    const MIN_WIDTH = 220;
+    const MAX_WIDTH = 640;
+
+    const panel = document.getElementById("tree-panel");
+    const filterInput = document.getElementById("tree-filter") as HTMLInputElement;
+    const treeContent = document.getElementById("tree-content");
+    const resizer = document.getElementById("tree-resizer");
+
+    let currentFilter = "";
+    let expandedKeys = new Set<string>();
+    let width = DEFAULT_WIDTH;
+    let diffData: DiffFileEntry | null = null;
+    let diffWorker: Worker | null = null;
+    let fromFiles: any = null;
+    let toFiles: any = null;
+
+    // SVGs
+    const chevronRight = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-neutral-600 dark:text-neutral-400 shrink-0"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
+    const chevronDown = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-neutral-600 dark:text-neutral-400 shrink-0"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+    const folderIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path></svg>`;
+    const folderOpenIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0"><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"></path></svg>`;
+    const fileIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-neutral-500 dark:text-neutral-400 shrink-0"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>`;
+
+    function getStatusColor(status: DiffStatus) {
+        switch (status) {
+            case "added": return "text-green-600 dark:text-green-400";
+            case "removed": return "text-red-600 dark:text-red-400";
+            case "modified": return "text-amber-600 dark:text-amber-400";
+            default: return "text-neutral-800 dark:text-neutral-200";
+        }
+    }
+
+    function getStatusBadge(status: DiffStatus) {
+        if (status === "unchanged") return "";
+        const char = status === "added" ? "A" : status === "removed" ? "R" : "M";
+        const color = getStatusColor(status);
+        return `<span class="text-[10px] font-bold ${color} px-1 shrink-0">${char}</span>`;
+    }
+
+    // Initialization
+    function init() {
+        const savedWidth = localStorage.getItem(STORAGE_KEY);
+        if (savedWidth && panel) {
+            const parsed = parseInt(savedWidth, 10);
+            if (!isNaN(parsed)) {
+                width = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, parsed));
+                panel.style.width = `${width}px`;
+            }
+        }
+
+        diffWorker = new Worker(new URL("../workers/diff.worker.ts", import.meta.url), { type: "module" });
+        diffWorker.onmessage = (e) => {
+            if (e.data.type === "diff-result") {
+                if (e.data.filename) {
+                    window.dispatchEvent(new CustomEvent('file-diff', {
+                        detail: {
+                            filename: e.data.filename,
+                            diff: e.data.data,
+                            isDiff: e.data.isDiff
+                        }
+                    }));
+                } else {
+                    expandedKeys = new Set();
+                    diffData = e.data.data;
+                    fromFiles = e.data.fromFiles;
+                    toFiles = e.data.toFiles;
+                    renderTree();
+                }
+            } else if (e.data.type === "error") {
+                console.error("Worker error:", e.data.error);
+                if (treeContent) treeContent.innerHTML = `<div class="p-4 text-red-500">Error: ${e.data.error}</div>`;
+            }
+        };
+
+        filterInput?.addEventListener("input", (e) => {
+            currentFilter = (e.target as HTMLInputElement).value.toLowerCase();
+            renderTree();
+        });
+
+        resizer?.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            const startX = e.clientX;
+            const startWidth = width;
+
+            const onMouseMove = (moveEvent: MouseEvent) => {
+                const delta = moveEvent.clientX - startX;
+                width = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + delta));
+                if (panel) panel.style.width = `${width}px`;
+                localStorage.setItem(STORAGE_KEY, width.toString());
+            };
+
+            const onMouseUp = () => {
+                window.removeEventListener("mousemove", onMouseMove);
+                window.removeEventListener("mouseup", onMouseUp);
+            };
+
+            window.addEventListener("mousemove", onMouseMove);
+            window.addEventListener("mouseup", onMouseUp);
+        });
+
+        interface StartDiffDetail {
+            pkg: string;
+            from: string;
+            to: string;
+        }
+
+        window.addEventListener('start-diff', (e) => {
+            const customEvent = e as CustomEvent<StartDiffDetail>;
+            const detail = customEvent.detail;
+            const { pkg, from, to } = detail;
+            const registry = window.location.pathname.split('/')[1] || 'npm';
+            if (pkg && from && to && diffWorker) {
+                if (treeContent) treeContent.innerHTML = '<div class="p-4 text-neutral-500">Computing diff...</div>';
+                diffWorker.postMessage({ type: "start-diff", registry, pkg, from, to });
+            }
+        });
+
+        // We no longer trigger diff on initial load or url-change
+        // It must be explicitly triggered by the start-diff event from the Compare button
+    }
+
+    function renderTree() {
+        if (!treeContent) return;
+        treeContent.innerHTML = "";
+        if (!diffData) return;
+
+        const rootChildren = diffData.children || [];
+        if (
+            expandedKeys.size === 0 &&
+            rootChildren.length === 1 &&
+            rootChildren[0].type === "directory"
+        ) {
+            expandedKeys.add(rootChildren[0].path);
+        }
+
+        // Don't render the root "/" directory itself, just its children
+        if (diffData.children) {
+            diffData.children.forEach(child => {
+                const node = createNodeElement(child, 0);
+                if (node) treeContent.appendChild(node);
+            });
+        }
+    }
+
+    function createNodeElement(item: DiffFileEntry, depth: number): HTMLElement | null {
+        const name = item.path.split('/').pop() || item.path;
+        const hasChildren = item.children && item.children.length > 0;
+        const matchesFilter = name.toLowerCase().includes(currentFilter);
+
+        let hasVisibleChildren = false;
+        if (hasChildren && item.children) {
+            hasVisibleChildren = item.children.some(child => {
+                if (child.path.toLowerCase().includes(currentFilter)) return true;
+                if (child.children) {
+                    return child.children.some(gc => gc.path.toLowerCase().includes(currentFilter));
+                }
+                return false;
+            });
+        }
+
+        const shouldAutoExpand = currentFilter.length > 0;
+        const isExpanded = expandedKeys.has(item.path) || (shouldAutoExpand && hasVisibleChildren);
+
+        if (currentFilter && !matchesFilter && !hasVisibleChildren) {
+            return null;
+        }
+
+        const container = document.createElement("div");
+
+        const row = document.createElement("div");
+        row.className = "flex items-center gap-1 py-1 px-1 pr-3 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer select-none rounded group w-full overflow-hidden";
+        row.style.paddingLeft = `${depth * 18 + 4}px`;
+
+        const toggleIcon = document.createElement("span");
+        toggleIcon.className = "w-4 flex items-center justify-center";
+        if (hasChildren) {
+            toggleIcon.innerHTML = isExpanded ? chevronDown : chevronRight;
+        }
+        row.appendChild(toggleIcon);
+
+        const typeIcon = document.createElement("span");
+        typeIcon.className = "w-4 flex items-center justify-center";
+        if (item.type === "directory") {
+            typeIcon.innerHTML = isExpanded ? folderOpenIcon : folderIcon;
+        } else {
+            typeIcon.innerHTML = fileIcon;
+        }
+        row.appendChild(typeIcon);
+
+        const nameSpan = document.createElement("span");
+        nameSpan.className = `text-sm truncate min-w-0 flex-1 ${getStatusColor(item.status)}`;
+        nameSpan.textContent = name;
+        row.appendChild(nameSpan);
+
+        row.innerHTML += getStatusBadge(item.status);
+
+        row.addEventListener("click", () => {
+            if (hasChildren) {
+                if (expandedKeys.has(item.path)) {
+                    expandedKeys.delete(item.path);
+                } else {
+                    expandedKeys.add(item.path);
+                }
+                renderTree();
+            } else if (item.type === "file" && diffWorker) {
+                const fromContent = fromFiles?.[item.path]?.content;
+                const toContent = toFiles?.[item.path]?.content;
+                diffWorker.postMessage({
+                    type: "get-diff",
+                    filename: item.path,
+                    fromContent,
+                    toContent
+                });
+            }
+        });
+
+        container.appendChild(row);
+
+        if (hasChildren && isExpanded && item.children) {
+            const childrenContainer = document.createElement("div");
+            item.children.forEach(child => {
+                const childEl = createNodeElement(child, depth + 1);
+                if (childEl) childrenContainer.appendChild(childEl);
+            });
+            container.appendChild(childrenContainer);
+        }
+
+        return container;
+    }
+
+    init();
+</script>

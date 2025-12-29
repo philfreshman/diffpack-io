@@ -1,0 +1,27 @@
+---
+import '../styles/global.css'
+import Tree from "../components/Tree.astro";
+import Header from "../components/Header/Header.astro";
+import { ClientRouter } from "astro:transitions";
+
+const { registry } = Astro.props;
+const showDiff = true;
+---
+
+<!doctype html>
+<html lang="en" data-theme>
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Dependency Review</title>
+	<script src="../utils/theme.ts"></script>
+	<ClientRouter />
+</head>
+<body class="w-full h-dvh flex flex-col bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
+	<Header registry={registry} />
+	<main class="w-full flex-1 flex flex-row overflow-hidden">
+		{showDiff && (<Tree />)}
+		<slot/>
+	</main>
+</body>
+</html>
