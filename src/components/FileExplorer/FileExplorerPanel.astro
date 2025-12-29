@@ -1,4 +1,7 @@
 ---
+import ResizerHandle from "./ResizerHandle.astro";
+import TreeFilter from "./TreeFilter.astro";
+import TreeList from "./TreeList.astro";
 ---
 
 <div class="bg-neutral-50 dark:bg-neutral-950 h-full" id="tree-root">
@@ -7,48 +10,21 @@
         id="tree-panel"
         style="width: 320px;"
     >
-        <div class="relative mb-3">
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                class="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-neutral-400 dark:text-neutral-500"
-            >
-                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-            </svg>
-            <input
-                type="text"
-                id="tree-filter"
-                placeholder="Filter files and folders..."
-                class="w-full pl-7 pr-3 py-2 text-sm bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500"
-            />
-        </div>
-
-        <div id="tree-content" class="font-mono text-sm flex-1 min-h-0 overflow-auto">
-            <!-- Tree nodes will be rendered here by JavaScript -->
-        </div>
-
-        <!-- Resizer handle -->
-        <div
-            role="separator"
-            aria-orientation="vertical"
-            id="tree-resizer"
-            class="absolute top-0 right-0 h-full w-1 cursor-col-resize select-none bg-transparent hover:bg-blue-500/30 dark:hover:bg-blue-400/30 transition-colors"
-        >
-            <!-- Larger invisible hit area -->
-            <div class="absolute top-0 -left-1 h-full w-3"></div>
-        </div>
+        <TreeFilter />
+        <TreeList />
+        <ResizerHandle />
     </div>
 </div>
 
 <script>
-    import type { DiffFileEntry, DiffStatus } from "../workers/diff.worker";
+    import type { DiffFileEntry, DiffStatus } from "../../workers/diff.worker";
+
+	interface FileMap {
+		[path: string]: {
+			content: string;
+			[key: string]: unknown;
+		};
+	}
 
     const STORAGE_KEY = "tree_panel_width";
     const DEFAULT_WIDTH = 320;
@@ -65,8 +41,8 @@
     let width = DEFAULT_WIDTH;
     let diffData: DiffFileEntry | null = null;
     let diffWorker: Worker | null = null;
-    let fromFiles: any = null;
-    let toFiles: any = null;
+	let fromFiles: FileMap | null = null;
+	let toFiles: FileMap | null = null;
 
     // SVGs
     const chevronRight = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-neutral-600 dark:text-neutral-400 shrink-0"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
@@ -96,13 +72,13 @@
         const savedWidth = localStorage.getItem(STORAGE_KEY);
         if (savedWidth && panel) {
             const parsed = parseInt(savedWidth, 10);
-            if (!isNaN(parsed)) {
+            if (!Number.isNaN(parsed)) {
                 width = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, parsed));
                 panel.style.width = `${width}px`;
             }
         }
 
-        diffWorker = new Worker(new URL("../workers/diff.worker.ts", import.meta.url), { type: "module" });
+        diffWorker = new Worker(new URL("../../workers/diff.worker.ts", import.meta.url), { type: "module" });
         diffWorker.onmessage = (e) => {
             if (e.data.type === "diff-result") {
                 if (e.data.filename) {
@@ -168,9 +144,6 @@
                 diffWorker.postMessage({ type: "start-diff", registry, pkg, from, to });
             }
         });
-
-        // We no longer trigger diff on initial load or url-change
-        // It must be explicitly triggered by the start-diff event from the Compare button
     }
 
     function renderTree() {

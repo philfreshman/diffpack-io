@@ -1,8 +1,8 @@
 ---
 import '../styles/global.css'
-import Tree from "../components/Tree.astro";
-import Header from "../components/Header/Header.astro";
 import { ClientRouter } from "astro:transitions";
+import FileExplorerPanel from "../components/FileExplorer/FileExplorerPanel.astro";
+import Header from "../components/Header/Header.astro";
 
 const { registry } = Astro.props;
 const showDiff = true;
@@ -20,7 +20,7 @@ const showDiff = true;
 <body class="w-full h-dvh flex flex-col bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
 	<Header registry={registry} />
 	<main class="w-full flex-1 flex flex-row overflow-hidden">
-		{showDiff && (<Tree />)}
+		{showDiff && (<FileExplorerPanel />)}
 		<slot/>
 	</main>
 </body>
