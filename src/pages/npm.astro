@@ -6,7 +6,7 @@ import Layout from "../layouts/Layout.astro";
 
 <Layout registry="npm">
     <div id="content" class="flex-1 p-4 overflow-auto min-w-0">
-        <div id="compare-status" class="text-sm text-neutral-700 dark:text-neutral-300 mb-3">
+        <div id="compare-status" class="text-sm text-neutral-700 dark:text-neutral-300">
             Loading...
         </div>
         <FileViewer />
@@ -34,7 +34,8 @@ import Layout from "../layouts/Layout.astro";
 
         if (statusEl) {
             if (pkg && from && to) {
-                statusEl.textContent = `Comparing ${pkg}: ${from} -> ${to}. Select a file from the tree to view changes.`;
+                // statusEl.textContent = `Comparing ${pkg}: ${from} -> ${to}. Select a file from the tree to view changes.`;
+                statusEl.textContent = ``;
             } else {
                 statusEl.textContent = 'Select a package and versions to compare';
             }

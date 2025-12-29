@@ -1,56 +1,263 @@
-<div id="diff-container" class="hidden">
-	<div id="diff-filename" class="text-sm font-semibold text-neutral-900 dark:text-white"></div>
-	<pre
-		id="diff-output"
-		class="line mt-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg p-3 text-xs text-neutral-900 dark:text-neutral-100 overflow-auto whitespace-pre-wrap"
-	></pre>
+<div class="flex flex-col h-full">
+	<!--Toolbar-->
+	<div class="w-full h-9 mb-3 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-md flex items-center px-3 justify-between">
+		<div class="flex items-center gap-4">
+			<div id="diff-filename" class="text-sm font-semibold text-neutral-900 dark:text-white"></div>
+			<div id="language-badge" class="hidden px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-[10px] font-medium text-neutral-600 dark:text-neutral-400 uppercase"></div>
+		</div>
+		<div class="flex items-center gap-2">
+			<label for="prism-theme" class="text-xs text-neutral-500 dark:text-neutral-400">Theme:</label>
+			<select id="prism-theme" class="text-xs bg-transparent border-none focus:ring-0 text-neutral-700 dark:text-neutral-300 cursor-pointer">
+				<optgroup label="Standard Themes">
+					<option value="prism">Default</option>
+					<option value="prism-dark">Dark</option>
+					<option value="prism-okaidia">Okaidia</option>
+					<option value="prism-solarizedlight">Solarized Light</option>
+					<option value="prism-tomorrow">Tomorrow Night</option>
+					<option value="prism-twilight">Twilight</option>
+				</optgroup>
+				<optgroup label="Prism Themes Repo">
+					<option value="atom-dark">Atom Dark</option>
+					<option value="cb">CB</option>
+					<option value="dracula">Dracula</option>
+					<option value="duotone-dark">Duotone Dark</option>
+					<option value="duotone-earth">Duotone Earth</option>
+					<option value="duotone-forest">Duotone Forest</option>
+					<option value="duotone-light">Duotone Light</option>
+					<option value="duotone-sea">Duotone Sea</option>
+					<option value="duotone-space">Duotone Space</option>
+					<option value="ghcolors">GitHub Colors</option>
+					<option value="material-dark">Material Dark</option>
+					<option value="material-light">Material Light</option>
+					<option value="material-oceanic">Material Oceanic</option>
+					<option value="night-owl">Night Owl</option>
+					<option value="nord">Nord</option>
+					<option value="shades-of-purple">Shades of Purple</option>
+					<option value="synthwave84">Synthwave 84</option>
+					<option value="vs">VS</option>
+					<option value="vsc-dark-plus">VSC Dark Plus</option>
+					<option value="xonokai">Xonokai</option>
+				</optgroup>
+			</select>
+		</div>
+	</div>
+	<div id="diff-container" class="hidden flex-1 min-h-0">
+		<pre
+			id="diff-output"
+			class="h-full mt-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg p-3 text-[14px] text-neutral-900 dark:text-neutral-100 overflow-auto whitespace-pre-wrap line-numbers"
+		><code id="diff-code"></code></pre>
+	</div>
 </div>
 
+<style is:global>
+	pre.line-numbers {
+		position: relative;
+		counter-reset: linenumber;
+		margin: 0;
+	}
+
+	pre.line-numbers > code {
+		position: relative;
+		display: block;
+	}
+
+	.line-numbers .line-numbers-rows {
+		position: absolute;
+		pointer-events: none;
+		font-size: 100%;
+		left: 0;
+		width: 3em;
+		letter-spacing: -1px;
+		border-right: 1px solid #999;
+		line-height: 1.5;
+
+		-webkit-user-select: none;
+		-moz-user-select: none;
+		-ms-user-select: none;
+		user-select: none;
+	}
+
+	.line-numbers-rows > span {
+		display: block;
+		counter-increment: linenumber;
+		height: 1.5em; /* Match line-height */
+	}
+
+	.line-numbers-rows > span:before {
+		content: counter(linenumber);
+		color: #999;
+		display: block;
+		padding-right: 0.8em;
+		text-align: right;
+		line-height: 1.5;
+	}
+
+	.dark .line-numbers .line-numbers-rows {
+		border-right: 1px solid #444;
+	}
+	.dark .line-numbers-rows > span:before {
+		color: #666;
+	}
+</style>
+
 <script>
+    import Prism from 'prismjs';
+	import 'prismjs/themes/prism.css';
+	import 'prismjs/plugins/line-numbers/prism-line-numbers.css';
+	import 'prismjs/plugins/diff-highlight/prism-diff-highlight.css';
+	import 'prismjs/plugins/autolinker/prism-autolinker.css';
+	import 'prismjs/components/prism-markup';
+	import 'prismjs/components/prism-json';
+	import 'prismjs/components/prism-javascript';
+	import 'prismjs/components/prism-typescript';
+	import 'prismjs/components/prism-jsx';
+	import 'prismjs/components/prism-tsx';
+	import 'prismjs/components/prism-css';
+	import 'prismjs/components/prism-scss';
+	import 'prismjs/components/prism-less';
+	import 'prismjs/components/prism-bash';
+	import 'prismjs/components/prism-markdown';
+	import 'prismjs/components/prism-diff';
+	import 'prismjs/components/prism-yaml';
+	import 'prismjs/components/prism-toml';
+	import 'prismjs/components/prism-rust';
+	import 'prismjs/plugins/line-numbers/prism-line-numbers';
+	import 'prismjs/plugins/diff-highlight/prism-diff-highlight';
+	import 'prismjs/plugins/autolinker/prism-autolinker';
+
     const diffContainer = document.getElementById('diff-container');
     const diffFilename = document.getElementById('diff-filename');
     const diffOutput = document.getElementById('diff-output');
+	const diffCode = document.getElementById('diff-code');
+	const languageBadge = document.getElementById('language-badge');
+	const themeSelect = document.getElementById('prism-theme') as HTMLSelectElement;
+	let themeStyle = document.getElementById('prism-theme-style') as HTMLStyleElement;
 
-    function resetDiff() {
-        diffContainer?.classList.add('hidden');
-        if (diffFilename) diffFilename.textContent = "";
-        if (diffOutput) diffOutput.innerHTML = "";
+	if (!themeStyle) {
+		themeStyle = document.createElement('style');
+		themeStyle.id = 'prism-theme-style';
+		document.head.appendChild(themeStyle);
+	}
+
+	const THEME_STORAGE_KEY = 'prism_theme';
+
+	// Load saved theme
+	const savedTheme = localStorage.getItem(THEME_STORAGE_KEY) || 'prism';
+	if (themeSelect) themeSelect.value = savedTheme;
+	updatePrismTheme(savedTheme);
+
+	themeSelect?.addEventListener('change', (e) => {
+		const theme = (e.target as HTMLSelectElement).value;
+		localStorage.setItem(THEME_STORAGE_KEY, theme);
+		updatePrismTheme(theme);
+	});
+
+	async function updatePrismTheme(theme: string) {
+		const isStandardTheme = [
+			'prism',
+			'prism-dark',
+			'prism-okaidia',
+			'prism-solarizedlight',
+			'prism-tomorrow',
+			'prism-twilight',
+		].includes(theme);
+
+		// To properly bundle and avoid external links, we'll use Vite's glob import to load all themes as raw strings.
+		// These will be bundled at build time.
+		const themes = import.meta.glob([
+			'/node_modules/prismjs/themes/*.css',
+			'/node_modules/prism-themes/themes/*.css'
+		], { query: '?raw', eager: true });
+
+		const themeKey = isStandardTheme
+			? `/node_modules/prismjs/themes/${theme}.css`
+			: `/node_modules/prism-themes/themes/prism-${theme}.css`;
+
+		const cssModule = themes[themeKey] as { default: string } | undefined;
+		if (cssModule) {
+			themeStyle.textContent = cssModule.default;
+		} else {
+			console.error(`Theme not found: ${themeKey}`);
+			// Fallback to default prism theme if not found
+			const defaultTheme = themes['/node_modules/prismjs/themes/prism.css'] as { default: string } | undefined;
+			if (defaultTheme) {
+				themeStyle.textContent = defaultTheme.default;
+			}
+		}
+	}
+
+	function resetDiff() {
+		diffContainer?.classList.add('hidden');
+		if (diffFilename) diffFilename.textContent = "";
+		if (diffCode) diffCode.innerHTML = "";
+		if (diffOutput) {
+			diffOutput.className = diffOutput.className.replace(/\blanguage-\S+/g, '');
+			diffOutput.classList.remove('diff-highlight');
+		}
+		if (languageBadge) {
+			languageBadge.textContent = "";
+			languageBadge.classList.add('hidden');
+		}
     }
 
-    function escapeHtml(value: string) {
-        return value
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
-    }
-
-    function renderDiffHtml(diff: string, isDiff = true) {
-		const lineHeight = 'leading-[1.9]'
-        return diff.split('\n').map((line) => {
-            let lineClass: string;
-            if (isDiff) {
-                if (line.startsWith('+')) {
-                    lineClass = 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300';
-                } else if (line.startsWith('-')) {
-                    lineClass = 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300';
-                } else if (line.startsWith('@@') || line.startsWith('---') || line.startsWith('+++')) {
-                    lineClass = 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-200';
-                } else {
-                    lineClass = 'text-neutral-800 dark:text-neutral-100';
-                }
-            } else {
-                lineClass = 'text-neutral-800 dark:text-neutral-100';
-            }
-
-            return `<div class="${lineHeight} ${lineClass}">${escapeHtml(line)}</div>`;
-        }).join('');
-    }
+	function getLanguageFromFilename(filename: string) {
+		const ext = filename.split('.').pop()?.toLowerCase();
+		switch (ext) {
+			case 'js':
+			case 'mjs':
+			case 'cjs': return 'javascript';
+			case 'jsx': return 'jsx';
+			case 'ts':
+			case 'mts': return 'typescript';
+			case 'tsx': return 'tsx';
+			case 'json': return 'json';
+			case 'md': return 'markdown';
+			case 'sh': return 'bash';
+			case 'yml':
+			case 'yaml': return 'yaml';
+			case 'toml': return 'toml';
+			case 'rs': return 'rust';
+			case 'css': return 'css';
+			case 'scss': return 'scss';
+			case 'less': return 'less';
+			case 'html':
+			case 'htm': return 'markup';
+			case 'vue': return 'markup';
+			case 'svelte': return 'markup';
+			case 'astro': return 'markup';
+			default: return 'clike';
+		}
+	}
 
     function showDiff(filename: string, diff: string, isDiff = true) {
         if (!diffContainer || !diffFilename || !diffOutput) return;
         diffContainer.classList.remove('hidden');
         diffFilename.textContent = filename;
-        diffOutput.innerHTML = renderDiffHtml(diff, isDiff);
+
+		const lang = isDiff ? 'diff' : getLanguageFromFilename(filename);
+
+		if (languageBadge) {
+			languageBadge.textContent = lang;
+			languageBadge.classList.remove('hidden');
+		}
+
+		if (diffOutput && diffCode) {
+			// Reset classes and apply language class for Prism themes
+			diffOutput.className = diffOutput.className.replace(/\blanguage-\S+/g, '');
+			diffOutput.classList.add(`language-${lang}`);
+
+			if (isDiff) {
+				diffOutput.classList.add('diff-highlight');
+			} else {
+				diffOutput.classList.remove('diff-highlight');
+			}
+
+			diffCode.className = '';
+			diffCode.classList.add(`language-${lang}`);
+
+			diffCode.textContent = diff;
+			Prism.highlightElement(diffCode);
+		}
     }
 
     interface FileDiffDetail {
