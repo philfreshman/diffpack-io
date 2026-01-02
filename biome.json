@@ -27,15 +27,18 @@
 	},
 	"css": {
 		"parser": {
-			"tailwindDirectives": true
+			"tailwindDirectives": true,
+			"cssModules": true
 		},
 		"formatter": {
+			"enabled": true,
 			"quoteStyle": "double"
 		}
 	},
 	"html": {
 		"experimentalFullSupportEnabled": true,
 		"formatter": {
+			"enabled": true,
 			"indentScriptAndStyle": true
 		}
 	},

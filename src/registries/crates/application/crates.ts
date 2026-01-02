@@ -1,4 +1,4 @@
-import type {PackageRegistry} from "../../types.ts";
+import type { PackageRegistry } from "../../types.ts";
 import { cratesService } from "../service/crates.ts";
 
 export const cratesRegistry: PackageRegistry = {

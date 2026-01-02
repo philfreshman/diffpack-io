@@ -1,4 +1,4 @@
-import type {PackageRegistry} from "../../types.ts";
+import type { PackageRegistry } from "../../types.ts";
 import { npmService } from "../service/npm.ts";
 
 export const npmRegistry: PackageRegistry = {

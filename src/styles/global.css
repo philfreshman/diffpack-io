@@ -27,9 +27,6 @@
 	--header-height-lg: calc(var(--header-height-md) + 2.25rem);
 }
 
-[data-theme="dark"] {
-}
-
 @theme {
 	--font-miriam-libre: "Miriam Libre", sans-serif;
 

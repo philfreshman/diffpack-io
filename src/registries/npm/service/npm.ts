@@ -1,14 +1,22 @@
+import type { PackageVersion, SearchResult } from "../../types.ts";
 import type { NPMService } from "../domain/base.ts";
-import type { SearchResult, PackageVersion } from "../../types.ts";
 
 export class NPMRegistryService implements NPMService {
 	async search(query: string): Promise<SearchResult[]> {
 		const res = await fetch(
-			`https://registry.npmjs.org/-/v1/search?text=${encodeURIComponent(query)}&size=10`
+			`https://registry.npmjs.org/-/v1/search?text=${encodeURIComponent(query)}&size=10`,
 		);
 		const data = await res.json();
 
-		return data.objects.map((item: any) => ({
+		interface NpmSearchItem {
+			package: {
+				name: string;
+				version: string;
+				description: string;
+			};
+		}
+
+		return data.objects.map((item: NpmSearchItem) => ({
 			name: item.package.name,
 			version: item.package.version,
 			description: item.package.description,
@@ -23,7 +31,7 @@ export class NPMRegistryService implements NPMService {
 	async getTarball(name: string, version: string): Promise<ArrayBuffer> {
 		// npm tarballs are at https://registry.npmjs.org/pkg/-/pkg-version.tgz
 		// For scoped packages: @scope/pkg -> https://registry.npmjs.org/@scope/pkg/-/pkg-version.tgz
-		const unscopedName = name.includes('/') ? name.split('/')[1] : name;
+		const unscopedName = name.includes("/") ? name.split("/")[1] : name;
 		const url = `https://registry.npmjs.org/${name}/-/${unscopedName}-${version}.tgz`;
 		const res = await fetch(url);
 		if (!res.ok) throw new Error(`Failed to fetch tarball from ${url}`);

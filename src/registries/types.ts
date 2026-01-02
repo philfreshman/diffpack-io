@@ -4,7 +4,6 @@ export interface PackageRegistry {
 	getPackage(name: string, version: string): Promise<ArrayBuffer>;
 }
 
-
 export type SearchResult = {
 	name: string;
 	description?: string;
@@ -16,5 +15,3 @@ export type PackageVersion = {
 	version: string;
 	files?: Record<string, string>;
 };
-
-

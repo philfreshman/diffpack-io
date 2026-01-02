@@ -1,24 +1,23 @@
 ---
-
 import ResizerHandle from "./ResizerHandle.astro";
 import TreeFilter from "./TreeFilter.astro";
 import TreeList from "./TreeList.astro";
 ---
 
 <div class="bg-neutral-50 dark:bg-neutral-950 h-full" id="tree-root">
-    <div
-        class="h-full bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 p-4 relative flex flex-col"
-        id="tree-panel"
-        style="width: 320px;"
-    >
-        <TreeFilter />
-        <TreeList />
-        <ResizerHandle />
-    </div>
+	<div
+		class="h-full bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 p-4 relative flex flex-col"
+		id="tree-panel"
+		style="width: 320px;"
+	>
+		<TreeFilter/>
+		<TreeList/>
+		<ResizerHandle/>
+	</div>
 </div>
 
 <script>
-    import type { DiffFileEntry, DiffStatus } from "../../workers/diff.worker";
+	import type { DiffFileEntry, DiffStatus } from "../../workers/diff.worker";
 
 	interface FileMap {
 		[path: string]: {
@@ -27,286 +26,333 @@ import TreeList from "./TreeList.astro";
 		};
 	}
 
-    const STORAGE_KEY = "tree_panel_width";
-    const DEFAULT_WIDTH = 320;
-    const MIN_WIDTH = 220;
-    const MAX_WIDTH = 640;
+	const STORAGE_KEY = "tree_panel_width";
+	const DEFAULT_WIDTH = 320;
+	const MIN_WIDTH = 220;
+	const MAX_WIDTH = 640;
 
-    const panel = document.getElementById("tree-panel");
-    const filterInput = document.getElementById("tree-filter") as HTMLInputElement;
-    const toggleModifiedBtn = document.getElementById("toggle-modified");
-    const treeContent = document.getElementById("tree-content");
-    const resizer = document.getElementById("tree-resizer");
+	const panel = document.getElementById("tree-panel");
+	const filterInput = document.getElementById(
+		"tree-filter",
+	) as HTMLInputElement;
+	const toggleModifiedBtn = document.getElementById("toggle-modified");
+	const treeContent = document.getElementById("tree-content");
+	const resizer = document.getElementById("tree-resizer");
 
-    let currentFilter = "";
-    let showOnlyModified = false;
-    let expandedKeys = new Set<string>();
-    let collapsedKeys = new Set<string>();
-    let width = DEFAULT_WIDTH;
-    let diffData: DiffFileEntry | null = null;
-    let diffWorker: Worker | null = null;
+	let currentFilter = "";
+	let showOnlyModified = false;
+	let expandedKeys = new Set<string>();
+	let collapsedKeys = new Set<string>();
+	let width = DEFAULT_WIDTH;
+	let diffData: DiffFileEntry | null = null;
+	let diffWorker: Worker | null = null;
 	let fromFiles: FileMap | null = null;
 	let toFiles: FileMap | null = null;
 
-    // SVGs
-    const chevronRight = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-neutral-600 dark:text-neutral-400 shrink-0"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
-    const chevronDown = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-neutral-600 dark:text-neutral-400 shrink-0"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
-    const folderIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path></svg>`;
-    const folderOpenIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0"><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"></path></svg>`;
-    const fileIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-neutral-500 dark:text-neutral-400 shrink-0"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>`;
+	// SVGs
+	const chevronRight = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-neutral-600 dark:text-neutral-400 shrink-0"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
+	const chevronDown = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-neutral-600 dark:text-neutral-400 shrink-0"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+	const folderIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path></svg>`;
+	const folderOpenIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0"><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"></path></svg>`;
+	const fileIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 text-neutral-500 dark:text-neutral-400 shrink-0"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>`;
 
-    function getStatusColor(status: DiffStatus) {
-        switch (status) {
-            case "added": return "text-green-600 dark:text-green-400";
-            case "removed": return "text-red-600 dark:text-red-400";
-            case "modified": return "text-amber-600 dark:text-amber-400";
-            default: return "text-neutral-800 dark:text-neutral-200";
-        }
-    }
+	function getStatusColor(status: DiffStatus) {
+		switch (status) {
+			case "added":
+				return "text-green-600 dark:text-green-400";
+			case "removed":
+				return "text-red-600 dark:text-red-400";
+			case "modified":
+				return "text-amber-600 dark:text-amber-400";
+			default:
+				return "text-neutral-800 dark:text-neutral-200";
+		}
+	}
 
-    function getStatusBadge(item: DiffFileEntry) {
-        if (item.status === "unchanged") return "";
+	function getStatusBadge(item: DiffFileEntry) {
+		if (item.status === "unchanged") return "";
 
-        const added = item.added || 0;
-        const removed = item.removed || 0;
+		const added = item.added || 0;
+		const removed = item.removed || 0;
 
-        if (added === 0 && removed === 0) return "";
+		if (added === 0 && removed === 0) return "";
 
-        let badges = "";
-        if (added > 0) {
-            badges += `<span class="text-[12px] font-bold text-green-600 dark:text-green-400 px-1 shrink-0">+${added}</span>`;
-        }
-        if (removed > 0) {
-            badges += `<span class="text-[12px] font-bold text-red-600 dark:text-red-400 px-1 shrink-0">-${removed}</span>`;
-        }
+		let badges = "";
+		if (added > 0) {
+			badges += `<span class="text-[12px] font-bold text-green-600 dark:text-green-400 px-1 shrink-0">+${added}</span>`;
+		}
+		if (removed > 0) {
+			badges += `<span class="text-[12px] font-bold text-red-600 dark:text-red-400 px-1 shrink-0">-${removed}</span>`;
+		}
 
-        return badges;
-    }
+		return badges;
+	}
 
-    // Initialization
-    function init() {
-        const savedWidth = localStorage.getItem(STORAGE_KEY);
-        if (savedWidth && panel) {
-            const parsed = parseInt(savedWidth, 10);
-            if (!Number.isNaN(parsed)) {
-                width = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, parsed));
-                panel.style.width = `${width}px`;
-            }
-        }
+	// Initialization
+	function init() {
+		const savedWidth = localStorage.getItem(STORAGE_KEY);
+		if (savedWidth && panel) {
+			const parsed = parseInt(savedWidth, 10);
+			if (!Number.isNaN(parsed)) {
+				width = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, parsed));
+				panel.style.width = `${width}px`;
+			}
+		}
 
-        diffWorker = new Worker(new URL("../../workers/diff.worker.ts", import.meta.url), { type: "module" });
-        diffWorker.onmessage = (e) => {
-            if (e.data.type === "diff-result") {
-                if (e.data.filename) {
-                    window.dispatchEvent(new CustomEvent('file-diff', {
-                        detail: {
-                            filename: e.data.filename,
-                            diff: e.data.data,
-                            isDiff: e.data.isDiff
-                        }
-                    }));
-                } else {
-                    expandedKeys = new Set();
-                    diffData = e.data.data;
-                    fromFiles = e.data.fromFiles;
-                    toFiles = e.data.toFiles;
-                    renderTree();
-                }
-            } else if (e.data.type === "error") {
-                console.error("Worker error:", e.data.error);
-                if (treeContent) treeContent.innerHTML = `<div class="p-4 text-red-500">Error: ${e.data.error}</div>`;
-            }
-        };
+		diffWorker = new Worker(
+			new URL("../../workers/diff.worker.ts", import.meta.url),
+			{ type: "module" },
+		);
+		diffWorker.onmessage = (e) => {
+			if (e.data.type === "diff-result") {
+				if (e.data.filename) {
+					window.dispatchEvent(
+						new CustomEvent("file-diff", {
+							detail: {
+								filename: e.data.filename,
+								diff: e.data.data,
+								isDiff: e.data.isDiff,
+							},
+						}),
+					);
+				} else {
+					expandedKeys = new Set();
+					diffData = e.data.data;
+					fromFiles = e.data.fromFiles;
+					toFiles = e.data.toFiles;
+					renderTree();
+				}
+			} else if (e.data.type === "error") {
+				console.error("Worker error:", e.data.error);
+				if (treeContent)
+					treeContent.innerHTML = `<div class="p-4 text-red-500">Error: ${e.data.error}</div>`;
+			}
+		};
 
-        filterInput?.addEventListener("input", (e) => {
-            currentFilter = (e.target as HTMLInputElement).value.toLowerCase();
-            collapsedKeys.clear();
-            renderTree();
-        });
+		filterInput?.addEventListener("input", (e) => {
+			currentFilter = (e.target as HTMLInputElement).value.toLowerCase();
+			collapsedKeys.clear();
+			renderTree();
+		});
 
-        toggleModifiedBtn?.addEventListener("click", () => {
-            showOnlyModified = !showOnlyModified;
-            collapsedKeys.clear();
-            if (showOnlyModified) {
-                toggleModifiedBtn.classList.add("bg-blue-50", "text-blue-600", "border-blue-200", "dark:bg-blue-900/20", "dark:text-blue-400", "dark:border-blue-800");
-                toggleModifiedBtn.classList.remove("text-neutral-400", "dark:text-neutral-500");
-            } else {
-                toggleModifiedBtn.classList.remove("bg-blue-50", "text-blue-600", "border-blue-200", "dark:bg-blue-900/20", "dark:text-blue-400", "dark:border-blue-800");
-                toggleModifiedBtn.classList.add("text-neutral-400", "dark:text-neutral-500");
-            }
-            renderTree();
-        });
+		toggleModifiedBtn?.addEventListener("click", () => {
+			showOnlyModified = !showOnlyModified;
+			collapsedKeys.clear();
+			if (showOnlyModified) {
+				toggleModifiedBtn.classList.add(
+					"bg-blue-50",
+					"text-blue-600",
+					"border-blue-200",
+					"dark:bg-blue-900/20",
+					"dark:text-blue-400",
+					"dark:border-blue-800",
+				);
+				toggleModifiedBtn.classList.remove(
+					"text-neutral-400",
+					"dark:text-neutral-500",
+				);
+			} else {
+				toggleModifiedBtn.classList.remove(
+					"bg-blue-50",
+					"text-blue-600",
+					"border-blue-200",
+					"dark:bg-blue-900/20",
+					"dark:text-blue-400",
+					"dark:border-blue-800",
+				);
+				toggleModifiedBtn.classList.add(
+					"text-neutral-400",
+					"dark:text-neutral-500",
+				);
+			}
+			renderTree();
+		});
 
-        resizer?.addEventListener("mousedown", (e) => {
-            e.preventDefault();
-            const startX = e.clientX;
-            const startWidth = width;
+		resizer?.addEventListener("mousedown", (e) => {
+			e.preventDefault();
+			const startX = e.clientX;
+			const startWidth = width;
 
-            const onMouseMove = (moveEvent: MouseEvent) => {
-                const delta = moveEvent.clientX - startX;
-                width = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + delta));
-                if (panel) panel.style.width = `${width}px`;
-                localStorage.setItem(STORAGE_KEY, width.toString());
-            };
+			const onMouseMove = (moveEvent: MouseEvent) => {
+				const delta = moveEvent.clientX - startX;
+				width = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + delta));
+				if (panel) panel.style.width = `${width}px`;
+				localStorage.setItem(STORAGE_KEY, width.toString());
+			};
 
-            const onMouseUp = () => {
-                window.removeEventListener("mousemove", onMouseMove);
-                window.removeEventListener("mouseup", onMouseUp);
-            };
+			const onMouseUp = () => {
+				window.removeEventListener("mousemove", onMouseMove);
+				window.removeEventListener("mouseup", onMouseUp);
+			};
 
-            window.addEventListener("mousemove", onMouseMove);
-            window.addEventListener("mouseup", onMouseUp);
-        });
+			window.addEventListener("mousemove", onMouseMove);
+			window.addEventListener("mouseup", onMouseUp);
+		});
 
-        interface StartDiffDetail {
-            pkg: string;
-            from: string;
-            to: string;
-        }
+		interface StartDiffDetail {
+			pkg: string;
+			from: string;
+			to: string;
+		}
 
-        window.addEventListener('start-diff', (e) => {
-            const customEvent = e as CustomEvent<StartDiffDetail>;
-            const detail = customEvent.detail;
-            const { pkg, from, to } = detail;
-            const registry = window.location.pathname.split('/')[1] || 'npm';
-            if (pkg && from && to && diffWorker) {
-                if (treeContent) treeContent.innerHTML = '<div class="p-4 text-neutral-500">Computing diff...</div>';
-                diffWorker.postMessage({ type: "start-diff", registry, pkg, from, to });
-            }
-        });
-    }
+		window.addEventListener("start-diff", (e) => {
+			const customEvent = e as CustomEvent<StartDiffDetail>;
+			const detail = customEvent.detail;
+			const { pkg, from, to } = detail;
+			const registry = window.location.pathname.split("/")[1] || "npm";
+			if (pkg && from && to && diffWorker) {
+				if (treeContent)
+					treeContent.innerHTML =
+						'<div class="p-4 text-neutral-500">Computing diff...</div>';
+				diffWorker.postMessage({ type: "start-diff", registry, pkg, from, to });
+			}
+		});
+	}
 
-    function renderTree() {
-        if (!treeContent) return;
-        treeContent.innerHTML = "";
-        if (!diffData) return;
+	function renderTree() {
+		if (!treeContent) return;
+		treeContent.innerHTML = "";
+		if (!diffData) return;
 
-        const rootChildren = diffData.children || [];
-        if (
-            expandedKeys.size === 0 &&
-            rootChildren.length === 1 &&
-            rootChildren[0].type === "directory"
-        ) {
-            expandedKeys.add(rootChildren[0].path);
-        }
+		const rootChildren = diffData.children || [];
+		if (
+			expandedKeys.size === 0 &&
+			rootChildren.length === 1 &&
+			rootChildren[0].type === "directory"
+		) {
+			expandedKeys.add(rootChildren[0].path);
+		}
 
-        // Don't render the root "/" directory itself, just its children
-        if (diffData.children) {
-            diffData.children.forEach(child => {
-                const node = createNodeElement(child, 0);
-                if (node) treeContent.appendChild(node);
-            });
-        }
-    }
+		// Don't render the root "/" directory itself, just its children
+		if (diffData.children) {
+			diffData.children.forEach((child) => {
+				const node = createNodeElement(child, 0);
+				if (node) treeContent.appendChild(node);
+			});
+		}
+	}
 
-    function hasVisibleDescendants(item: DiffFileEntry): boolean {
-        if (!item.children) return false;
+	function hasVisibleDescendants(item: DiffFileEntry): boolean {
+		if (!item.children) return false;
 
-        return item.children.some(child => {
-            const matchesFilter = child.path.toLowerCase().includes(currentFilter);
-            const isModified = child.status !== "unchanged";
+		return item.children.some((child) => {
+			const matchesFilter = child.path.toLowerCase().includes(currentFilter);
+			const isModified = child.status !== "unchanged";
 
-            // Check if this child itself should be visible
-            const isVisible = showOnlyModified ? (isModified && matchesFilter) : matchesFilter;
-            if (isVisible) return true;
+			// Check if this child itself should be visible
+			const isVisible = showOnlyModified
+				? isModified && matchesFilter
+				: matchesFilter;
+			if (isVisible) return true;
 
-            // Recursively check its descendants
-            return hasVisibleDescendants(child);
-        });
-    }
+			// Recursively check its descendants
+			return hasVisibleDescendants(child);
+		});
+	}
 
-    function createNodeElement(item: DiffFileEntry, depth: number): HTMLElement | null {
-        const name = item.path.split('/').pop() || item.path;
-        const hasChildren = item.children && item.children.length > 0;
-        const matchesFilter = name.toLowerCase().includes(currentFilter);
-        const isModified = item.status !== "unchanged";
+	function createNodeElement(
+		item: DiffFileEntry,
+		depth: number,
+	): HTMLElement | null {
+		const name = item.path.split("/").pop() || item.path;
+		const hasChildren = item.children && item.children.length > 0;
+		const matchesFilter = name.toLowerCase().includes(currentFilter);
+		const isModified = item.status !== "unchanged";
 
-        const hasVisibleChildren = hasChildren ? hasVisibleDescendants(item) : false;
-        const shouldAutoExpand = currentFilter.length > 0 || showOnlyModified;
+		const hasVisibleChildren = hasChildren
+			? hasVisibleDescendants(item)
+			: false;
+		const shouldAutoExpand = currentFilter.length > 0 || showOnlyModified;
 
-        let isExpanded = expandedKeys.has(item.path);
-        if (!isExpanded && !collapsedKeys.has(item.path) && shouldAutoExpand && hasVisibleChildren) {
-            isExpanded = true;
-        }
+		let isExpanded = expandedKeys.has(item.path);
+		if (
+			!isExpanded &&
+			!collapsedKeys.has(item.path) &&
+			shouldAutoExpand &&
+			hasVisibleChildren
+		) {
+			isExpanded = true;
+		}
 
-        // Visibility logic:
-        // 1. If filtering by text, item or its descendants must match filter
-        if (currentFilter && !matchesFilter && !hasVisibleChildren) {
-            return null;
-        }
+		// Visibility logic:
+		// 1. If filtering by text, item or its descendants must match filter
+		if (currentFilter && !matchesFilter && !hasVisibleChildren) {
+			return null;
+		}
 
-        // 2. If showOnlyModified is active, item or its descendants must be modified
-        if (showOnlyModified && !isModified && !hasVisibleChildren) {
-            return null;
-        }
+		// 2. If showOnlyModified is active, item or its descendants must be modified
+		if (showOnlyModified && !isModified && !hasVisibleChildren) {
+			return null;
+		}
 
-        const container = document.createElement("div");
+		const container = document.createElement("div");
 
-        const row = document.createElement("div");
-        row.className = "flex items-center gap-1 py-1 px-1 pr-3 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer select-none rounded group w-full overflow-hidden";
-        row.style.paddingLeft = `${depth * 18 + 4}px`;
+		const row = document.createElement("div");
+		row.className =
+			"flex items-center gap-1 py-1 px-1 pr-3 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer select-none rounded group w-full overflow-hidden";
+		row.style.paddingLeft = `${depth * 18 + 4}px`;
 
-        const toggleIcon = document.createElement("span");
-        toggleIcon.className = "w-4 flex items-center justify-center";
-        if (hasChildren) {
-            toggleIcon.innerHTML = isExpanded ? chevronDown : chevronRight;
-        }
-        row.appendChild(toggleIcon);
+		const toggleIcon = document.createElement("span");
+		toggleIcon.className = "w-4 flex items-center justify-center";
+		if (hasChildren) {
+			toggleIcon.innerHTML = isExpanded ? chevronDown : chevronRight;
+		}
+		row.appendChild(toggleIcon);
 
-        const typeIcon = document.createElement("span");
-        typeIcon.className = "w-4 flex items-center justify-center";
-        if (item.type === "directory") {
-            typeIcon.innerHTML = isExpanded ? folderOpenIcon : folderIcon;
-        } else {
-            typeIcon.innerHTML = fileIcon;
-        }
-        row.appendChild(typeIcon);
+		const typeIcon = document.createElement("span");
+		typeIcon.className = "w-4 flex items-center justify-center";
+		if (item.type === "directory") {
+			typeIcon.innerHTML = isExpanded ? folderOpenIcon : folderIcon;
+		} else {
+			typeIcon.innerHTML = fileIcon;
+		}
+		row.appendChild(typeIcon);
 
-        const nameSpan = document.createElement("span");
-        nameSpan.className = `text-sm truncate min-w-0 flex-1 ${getStatusColor(item.status)}`;
-        nameSpan.textContent = name;
-        row.appendChild(nameSpan);
+		const nameSpan = document.createElement("span");
+		nameSpan.className = `text-sm truncate min-w-0 flex-1 ${getStatusColor(item.status)}`;
+		nameSpan.textContent = name;
+		row.appendChild(nameSpan);
 
-        const badgeHtml = getStatusBadge(item);
-        if (badgeHtml) {
-            row.insertAdjacentHTML('beforeend', badgeHtml);
-        }
+		const badgeHtml = getStatusBadge(item);
+		if (badgeHtml) {
+			row.insertAdjacentHTML("beforeend", badgeHtml);
+		}
 
-        row.addEventListener("click", () => {
-            if (hasChildren) {
-                if (isExpanded) {
-                    expandedKeys.delete(item.path);
-                    collapsedKeys.add(item.path);
-                } else {
-                    expandedKeys.add(item.path);
-                    collapsedKeys.delete(item.path);
-                }
-                renderTree();
-            } else if (item.type === "file" && diffWorker) {
-                const fromContent = fromFiles?.[item.path]?.content;
-                const toContent = toFiles?.[item.path]?.content;
-                diffWorker.postMessage({
-                    type: "get-diff",
-                    filename: item.path,
-                    fromContent,
-                    toContent
-                });
-            }
-        });
+		row.addEventListener("click", () => {
+			if (hasChildren) {
+				if (isExpanded) {
+					expandedKeys.delete(item.path);
+					collapsedKeys.add(item.path);
+				} else {
+					expandedKeys.add(item.path);
+					collapsedKeys.delete(item.path);
+				}
+				renderTree();
+			} else if (item.type === "file" && diffWorker) {
+				const fromContent = fromFiles?.[item.path]?.content;
+				const toContent = toFiles?.[item.path]?.content;
+				diffWorker.postMessage({
+					type: "get-diff",
+					filename: item.path,
+					fromContent,
+					toContent,
+				});
+			}
+		});
 
-        container.appendChild(row);
+		container.appendChild(row);
 
-        if (hasChildren && isExpanded && item.children) {
-            const childrenContainer = document.createElement("div");
-            item.children.forEach(child => {
-                const childEl = createNodeElement(child, depth + 1);
-                if (childEl) childrenContainer.appendChild(childEl);
-            });
-            container.appendChild(childrenContainer);
-        }
+		if (hasChildren && isExpanded && item.children) {
+			const childrenContainer = document.createElement("div");
+			item.children.forEach((child) => {
+				const childEl = createNodeElement(child, depth + 1);
+				if (childEl) childrenContainer.appendChild(childEl);
+			});
+			container.appendChild(childrenContainer);
+		}
 
-        return container;
-    }
+		return container;
+	}
 
-    init();
+	init();
 </script>

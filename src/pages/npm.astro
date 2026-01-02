@@ -1,50 +1,52 @@
 ---
-
 import FileViewer from "../components/FileViewer/FileViewer.astro";
 import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout registry="npm">
-    <div id="content" class="flex-1 p-4 overflow-auto min-w-0">
-        <div id="compare-status" class="text-sm text-neutral-700 dark:text-neutral-300">
-            Loading...
-        </div>
-        <FileViewer />
-    </div>
+	<div id="content" class="flex-1 p-4 overflow-auto min-w-0">
+		<div
+			id="compare-status"
+			class="text-sm text-neutral-700 dark:text-neutral-300"
+		>
+			Loading...
+		</div>
+		<FileViewer/>
+	</div>
 </Layout>
 
 <script>
-    const statusEl = document.getElementById('compare-status');
+	const statusEl = document.getElementById("compare-status");
 
-    function handleUrlChange() {
-        const pathParts = window.location.pathname.split('/').filter(Boolean);
-        let pkg: string;
-        let from: string;
-        let to: string;
+	function handleUrlChange() {
+		const pathParts = window.location.pathname.split("/").filter(Boolean);
+		let pkg: string;
+		let from: string;
+		let to: string;
 
-        if (pathParts[1]?.startsWith('@')) {
-            pkg = `${pathParts[1]}/${pathParts[2]}`;
-            from = pathParts[3];
-            to = pathParts[4];
-        } else {
-            pkg = pathParts[1];
-            from = pathParts[2];
-            to = pathParts[3];
-        }
+		if (pathParts[1]?.startsWith("@")) {
+			pkg = `${pathParts[1]}/${pathParts[2]}`;
+			from = pathParts[3];
+			to = pathParts[4];
+		} else {
+			pkg = pathParts[1];
+			from = pathParts[2];
+			to = pathParts[3];
+		}
 
-        if (statusEl) {
-            if (pkg && from && to) {
-                // statusEl.textContent = `Comparing ${pkg}: ${from} -> ${to}. Select a file from the tree to view changes.`;
-                statusEl.textContent = ``;
-            } else {
-                statusEl.textContent = 'Select a package and versions to compare';
-            }
-        }
-    }
+		if (statusEl) {
+			if (pkg && from && to) {
+				// statusEl.textContent = `Comparing ${pkg}: ${from} -> ${to}. Select a file from the tree to view changes.`;
+				statusEl.textContent = ``;
+			} else {
+				statusEl.textContent = "Select a package and versions to compare";
+			}
+		}
+	}
 
-    window.addEventListener('popstate', handleUrlChange);
-    window.addEventListener('start-diff', handleUrlChange);
+	window.addEventListener("popstate", handleUrlChange);
+	window.addEventListener("start-diff", handleUrlChange);
 
-    // Initial load
-    handleUrlChange();
+	// Initial load
+	handleUrlChange();
 </script>
