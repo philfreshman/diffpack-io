@@ -41,3 +41,7 @@ Thumbs.db
 
 # Misc
 *.tsbuildinfo
+
+
+# Photoshop
+*.psd
