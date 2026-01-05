@@ -16,32 +16,21 @@ import Layout from "../layouts/Layout.astro";
 </Layout>
 
 <script>
-	const statusEl = document.getElementById("compare-status");
+	// import { parseUrl } from "../utils/urlParser.ts";
+
+	// const statusEl = document.getElementById("compare-status");
 
 	function handleUrlChange() {
-		const pathParts = window.location.pathname.split("/").filter(Boolean);
-		let pkg: string;
-		let from: string;
-		let to: string;
-
-		// Crates don't have scopes starting with @, but we keep it consistent
-		if (pathParts[1]?.startsWith("@")) {
-			pkg = `${pathParts[1]}/${pathParts[2]}`;
-			from = pathParts[3];
-			to = pathParts[4];
-		} else {
-			pkg = pathParts[1];
-			from = pathParts[2];
-			to = pathParts[3];
-		}
-
-		if (statusEl) {
-			if (pkg && from && to) {
-				statusEl.textContent = `Comparing ${pkg}: ${from} -> ${to}. Select a file from the tree to view changes.`;
-			} else {
-				statusEl.textContent = "Select a package and versions to compare";
-			}
-		}
+		// const state = parseUrl(window.location.pathname);
+		// const { package: pkg, from, to } = state;
+		//
+		// if (statusEl) {
+		// 	if (pkg && from && to) {
+		// 		statusEl.textContent = `Comparing ${pkg}: ${from} -> ${to}. Select a file from the tree to view changes.`;
+		// 	} else {
+		// 		statusEl.textContent = "Select a package and versions to compare";
+		// 	}
+		// }
 	}
 
 	window.addEventListener("popstate", handleUrlChange);

@@ -56,6 +56,8 @@ const currentGradient = registryGradients[registry] || "";
 </header>
 
 <script>
+	import { parseUrl } from "../../utils/urlParser";
+
 	const input = document.getElementById("package-search") as HTMLInputElement;
 	const fromSelect = document.getElementById(
 		"from-version",
@@ -70,33 +72,16 @@ const currentGradient = registryGradients[registry] || "";
 	}
 
 	function getUrlState() {
-		const pathParts = window.location.pathname.split("/").filter(Boolean);
-		if (pathParts.length === 0)
-			return { register: "", package: "", from: "", to: "" };
-
-		const register = pathParts[0];
-		let pkg: string;
-		let from: string;
-		let to: string;
-
-		if (pathParts[1]?.startsWith("@")) {
-			pkg = `${pathParts[1]}/${pathParts[2]}`;
-			from = pathParts[3] || "";
-			to = pathParts[4] || "";
-		} else {
-			pkg = pathParts[1] || "";
-			from = pathParts[2] || "";
-			to = pathParts[3] || "";
-		}
-
-		return { register, package: pkg, from, to };
+		return parseUrl(window.location.pathname);
 	}
 
 	// Compare button handler
 	compareBtn.addEventListener("click", () => {
+		const state = getUrlState();
 		window.dispatchEvent(
 			new CustomEvent("start-diff", {
 				detail: {
+					registry: state.registry,
 					pkg: input.value,
 					from: fromSelect.value,
 					to: toSelect.value,
@@ -131,6 +116,7 @@ const currentGradient = registryGradients[registry] || "";
 					window.dispatchEvent(
 						new CustomEvent("start-diff", {
 							detail: {
+								registry: state.registry,
 								pkg: state.package,
 								from: state.from,
 								to: state.to,

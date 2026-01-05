@@ -17,6 +17,7 @@ import TreeList from "./TreeList.astro";
 </div>
 
 <script>
+	import { parseUrl } from "../../utils/urlParser";
 	import type { DiffFileEntry, DiffStatus } from "../../workers/diff.worker";
 
 	interface FileMap {
@@ -190,6 +191,7 @@ import TreeList from "./TreeList.astro";
 		});
 
 		interface StartDiffDetail {
+			registry: string;
 			pkg: string;
 			from: string;
 			to: string;
@@ -199,7 +201,8 @@ import TreeList from "./TreeList.astro";
 			const customEvent = e as CustomEvent<StartDiffDetail>;
 			const detail = customEvent.detail;
 			const { pkg, from, to } = detail;
-			const registry = window.location.pathname.split("/")[1] || "npm";
+			const state = parseUrl(window.location.pathname);
+			const registry = detail.registry || state.registry;
 			if (pkg && from && to && diffWorker) {
 				if (treeContent)
 					treeContent.innerHTML =
