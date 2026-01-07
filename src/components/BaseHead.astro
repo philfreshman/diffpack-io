@@ -1,6 +1,9 @@
 ---
 import "../styles/global.css";
 import { ClientRouter } from "astro:transitions";
+import Analytics from '@vercel/analytics/astro'
+import SpeedInsights from "@vercel/speed-insights/astro"
+
 
 interface Props {
 	title: string;
@@ -16,12 +19,17 @@ const { title, description } = Astro.props;
 <meta name="description" content={description} />
 <meta name="keywords" content="dependency, review, diff, npm, crates.io, rust, javascript, typescript, package, compare" />
 
+
 <!-- Open Graph / Facebook -->
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://diffpack.io/" />
 <meta property="og:title" content={title} />
 <meta property="og:description" content={description} />
 <meta property="og:image" content="/android-chrome-512x512.png" />
+
+<!-- Vercel -->
+<Analytics/>
+<SpeedInsights/>
 
 <!-- Twitter -->
 <meta property="twitter:card" content="summary_large_image" />
