@@ -54,8 +54,15 @@
 		getRegistry,
 	} from "../../registries/searchService.ts";
 	import { parseUrl } from "../../utils/urlParser";
+	import { escapeHTML } from "../../utils/dom.ts";
+
+	let abortController: AbortController | null = null;
 
 	function initVersionSelectors() {
+		if (abortController) abortController.abort();
+		abortController = new AbortController();
+		const { signal } = abortController;
+
 		const fromInput = document.getElementById("from-version") as HTMLInputElement;
 		const toInput = document.getElementById("to-version") as HTMLInputElement;
 		const fromResults = document.getElementById("from-results") as HTMLDivElement;
@@ -78,13 +85,14 @@
 			}
 
 			container.innerHTML = versions
-				.map(
-					(v, i) => `
-			<div class="version-item px-4 py-2 cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors text-sm text-neutral-900 dark:text-white" data-version="${v}" data-index="${i}">
-				${v}
+				.map((v, i) => {
+					const escapedVersion = escapeHTML(v);
+					return `
+			<div class="version-item px-4 py-2 cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors text-sm text-neutral-900 dark:text-white" data-version="${escapedVersion}" data-index="${i}">
+				${escapedVersion}
 			</div>
-		`,
-				)
+		`;
+				})
 				.join("");
 			container.classList.remove("hidden");
 		}
@@ -187,57 +195,73 @@
 				},
 			},
 		].forEach(({ input, results, getIndex, setIndex }) => {
-			input?.addEventListener("focus", () => {
-				renderDropdown(results, allVersions, input);
-				setIndex(-1);
-			});
+			input?.addEventListener(
+				"focus",
+				() => {
+					renderDropdown(results, allVersions, input);
+					setIndex(-1);
+				},
+				{ signal },
+			);
 
-			input?.addEventListener("input", (e) => {
-				const query = (e.target as HTMLInputElement).value;
-				const filtered = filterVersions(query);
-				renderDropdown(results, filtered, input);
-				setIndex(-1);
-			});
+			input?.addEventListener(
+				"input",
+				(e) => {
+					const query = (e.target as HTMLInputElement).value;
+					const filtered = filterVersions(query);
+					renderDropdown(results, filtered, input);
+					setIndex(-1);
+				},
+				{ signal },
+			);
 
-			results?.addEventListener("click", (e) => {
-				const item = (e.target as HTMLElement).closest(
-					".version-item",
-				) as HTMLElement;
-				if (item) {
-					const version = item.dataset.version;
-					if (version) selectVersion(input, version, results);
-				}
-			});
-
-			input?.addEventListener("keydown", (e) => {
-				if (results.classList.contains("hidden")) {
-					if (e.key === "ArrowDown") {
-						renderDropdown(results, allVersions, input);
-					}
-					return;
-				}
-
-				const items = results.querySelectorAll(".version-item");
-				if (!items.length) return;
-
-				if (e.key === "ArrowDown") {
-					e.preventDefault();
-					setIndex((getIndex() + 1) % items.length);
-					updateHighlight(items, getIndex());
-				} else if (e.key === "ArrowUp") {
-					e.preventDefault();
-					setIndex((getIndex() - 1 + items.length) % items.length);
-					updateHighlight(items, getIndex());
-				} else if (e.key === "Enter") {
-					e.preventDefault();
-					if (getIndex() >= 0) {
-						const version = (items[getIndex()] as HTMLElement).dataset.version;
+			results?.addEventListener(
+				"click",
+				(e) => {
+					const item = (e.target as HTMLElement).closest(
+						".version-item",
+					) as HTMLElement;
+					if (item) {
+						const version = item.dataset.version;
 						if (version) selectVersion(input, version, results);
 					}
-				} else if (e.key === "Escape") {
-					results.classList.add("hidden");
-				}
-			});
+				},
+				{ signal },
+			);
+
+			input?.addEventListener(
+				"keydown",
+				(e) => {
+					if (results.classList.contains("hidden")) {
+						if (e.key === "ArrowDown") {
+							renderDropdown(results, allVersions, input);
+						}
+						return;
+					}
+
+					const items = results.querySelectorAll(".version-item");
+					if (!items.length) return;
+
+					if (e.key === "ArrowDown") {
+						e.preventDefault();
+						setIndex((getIndex() + 1) % items.length);
+						updateHighlight(items, getIndex());
+					} else if (e.key === "ArrowUp") {
+						e.preventDefault();
+						setIndex((getIndex() - 1 + items.length) % items.length);
+						updateHighlight(items, getIndex());
+					} else if (e.key === "Enter") {
+						e.preventDefault();
+						if (getIndex() >= 0) {
+							const version = (items[getIndex()] as HTMLElement).dataset.version;
+							if (version) selectVersion(input, version, results);
+						}
+					} else if (e.key === "Escape") {
+						results.classList.add("hidden");
+					}
+				},
+				{ signal },
+			);
 		});
 
 		function updateHighlight(items: NodeListOf<Element>, selectedIndex: number) {
@@ -251,26 +275,34 @@
 		}
 
 		// Close dropdowns on click outside
-		document.addEventListener("click", (e) => {
-			if (
-				!fromInput.contains(e.target as Node) &&
-				!fromResults.contains(e.target as Node)
-			) {
-				fromResults.classList.add("hidden");
-			}
-			if (
-				!toInput.contains(e.target as Node) &&
-				!toResults.contains(e.target as Node)
-			) {
-				toResults.classList.add("hidden");
-			}
-		});
+		document.addEventListener(
+			"click",
+			(e) => {
+				if (
+					!fromInput.contains(e.target as Node) &&
+					!fromResults.contains(e.target as Node)
+				) {
+					fromResults.classList.add("hidden");
+				}
+				if (
+					!toInput.contains(e.target as Node) &&
+					!toResults.contains(e.target as Node)
+				) {
+					toResults.classList.add("hidden");
+				}
+			},
+			{ signal },
+		);
 
 		// Listen for package selection
-		window.addEventListener("package-selected", (e: Event) => {
-			const detail = (e as CustomEvent).detail;
-			loadVersions(detail.name);
-		});
+		window.addEventListener(
+			"package-selected",
+			(e: Event) => {
+				const detail = (e as CustomEvent).detail;
+				loadVersions(detail.name);
+			},
+			{ signal },
+		);
 	}
 
 	initVersionSelectors();

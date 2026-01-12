@@ -58,7 +58,13 @@ const currentGradient = registryGradients[registry] || "";
 <script>
 	import { parseUrl } from "../../utils/urlParser";
 
+	let abortController: AbortController | null = null;
+
 	function initHeader() {
+		if (abortController) abortController.abort();
+		abortController = new AbortController();
+		const { signal } = abortController;
+
 		const input = document.getElementById("package-search") as HTMLInputElement;
 		const fromSelect = document.getElementById(
 			"from-version",
@@ -91,12 +97,12 @@ const currentGradient = registryGradients[registry] || "";
 					},
 				}),
 			);
-		});
+		}, { signal });
 
 		// Update button state on changes
-		window.addEventListener("package-selected", updateCompareButton);
-		window.addEventListener("versions-loaded", updateCompareButton);
-		window.addEventListener("version-changed", updateCompareButton);
+		window.addEventListener("package-selected", updateCompareButton, { signal });
+		window.addEventListener("versions-loaded", updateCompareButton, { signal });
+		window.addEventListener("version-changed", updateCompareButton, { signal });
 
 		// Initialization - handle URL state on load
 		const initialState = getUrlState();
@@ -128,7 +134,7 @@ const currentGradient = registryGradients[registry] || "";
 						);
 					}
 				},
-				{ once: true },
+				{ once: true, signal },
 			);
 		}
 	}
