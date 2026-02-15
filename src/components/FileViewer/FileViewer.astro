@@ -548,7 +548,10 @@ import Toolbar from "./Toolbar.astro";
 		contentCell.className = `${CLASSES.contentCollapsed}`;
 
 		const count = end - start + 1;
-		contentCell.textContent = `@@ Collapsed ${count} lines @@`;
+		const labelSpan = document.createElement("span");
+		labelSpan.className = "pl-4";
+		labelSpan.textContent = `@@ Collapsed ${count} lines @@`;
+		contentCell.appendChild(labelSpan);
 
 		const createBtn = (
 			direction: "up" | "down",
