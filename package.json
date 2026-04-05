@@ -9,11 +9,14 @@
 		"preview": "astro build && astro preview",
 		"astro": "astro",
 		"format": "biome format .",
-		"lint": "biome lint ."
+		"lint": "biome lint .",
+		"test:ui": "bunx playwright test --ui",
+		"test:e2e": "playwright test"
 	},
 	"dependencies": {
 		"@astrojs/check": "^0.9.6",
 		"@astrojs/react": "^4.4.2",
+		"@playwright/test": "^1.58.2",
 		"@types/react": "^19.2.14",
 		"@types/react-dom": "^19.2.3",
 		"@vercel/analytics": "^1.6.1",
@@ -29,6 +32,7 @@
 		"@tailwindcss/vite": "4.1.18",
 		"@types/node": "^25.4.0",
 		"husky": "^9.1.7",
+		"playwright": "^1.58.2",
 		"tailwindcss": "4.1.18",
 		"wasm-pack": "^0.14.0"
 	}
